@@ -1,28 +1,43 @@
-# Whitelist mode — only public-release files are tracked.
-# Public surface: README.md, OVERVIEW.md, and the released model file at each topic root.
-# Source code, notebooks, datasets, intermediate model checkpoints, env, .claude/ etc. stay local.
+# Default: track source. Only the things below stay local.
 
-# Ignore everything by default
-*
+# --- Python ---
+.venv/
+venv/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+*.egg-info/
 
-# Allow descending into subdirectories so the !rules below can match files inside
-!*/
+# --- OS / editor ---
+.DS_Store
 
-# This file itself
-!.gitignore
+# --- Claude Code local settings ---
+.claude/
 
-# Public-release files
-!README.md
-!OVERVIEW.md
-!requirements.txt
-!*.pt
-!*.pth
+# --- Logs ---
+*.log
 
-# Showcase assets (images + metrics referenced by OVERVIEW.md / README.md)
-!**/assets/**
+# --- Datasets (large; fetched/generated locally) ---
+mnist-mlp/input/
+youbike-transformer/input/
 
-# model/ folder is always ignored — only the topic-root "latest" model file ships
-**/model/
+# --- Training outputs / per-run dirs ---
+**/output/
 
-# 內嵌資料集（獨立 repo），不納入本 repo
-youbike-transformer/input/youbike-historical-data/
+# --- Model checkpoints: ignore the bulk, ship only a curated few ---
+chess/checkpoints/*
+!chess/checkpoints/best.pt
+!chess/checkpoints/weak.pt
+!chess/checkpoints/best_iter50.pt
+!chess/checkpoints/iter_120.pt
+
+mnist-mlp/model/*
+!mnist-mlp/model/20260509_115652.pt
+
+youbike-transformer/model/
+
+# --- youbike-transformer: 程式尚未完成，暫不發布原始碼 ---
+# （仍發布它的 README / OVERVIEW / assets）
+youbike-transformer/*.py
+youbike-transformer/*.ipynb
+youbike-transformer/*.csv

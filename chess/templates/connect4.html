@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Connect 4 — AlphaZero</title>
+<style>
+  :root{color-scheme:dark;
+    --board:#1565c0; --hole:#0d3a73; --red:#e53935; --yellow:#fdd835;
+    --bg:#0f1419; --panel:#1b232c; --text:#e8eef4; --muted:#8ba0b3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:18px}
+  h1{font-size:1.35rem;margin:0;font-weight:650;letter-spacing:.5px}
+  h1 small{color:var(--muted);font-weight:400;font-size:.7em}
+  .panel{background:var(--panel);border-radius:12px;padding:14px 18px;
+    display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center}
+  label{font-size:.85rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+  select,button{font:inherit;border-radius:8px;border:1px solid #2e3a46;
+    background:#10161d;color:var(--text);padding:7px 12px;cursor:pointer}
+  button.primary{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+  button:active{transform:translateY(1px)}
+  #status{font-size:1rem;min-height:1.4em;font-weight:550}
+  .board{background:var(--board);padding:12px;border-radius:14px;
+    display:grid;grid-template-columns:repeat(7,1fr);gap:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  .cell{width:62px;height:62px;border-radius:50%;background:var(--hole);
+    box-shadow:inset 0 3px 6px rgba(0,0,0,.5);position:relative;cursor:pointer;
+    transition:filter .12s}
+  .col-hover .cell{filter:brightness(1.18)}
+  .disc{position:absolute;inset:4px;border-radius:50%;animation:drop .28s ease-out}
+  .disc.r{background:radial-gradient(circle at 35% 30%,#ff7b72,var(--red))}
+  .disc.y{background:radial-gradient(circle at 35% 30%,#fff59d,var(--yellow))}
+  /* 最新落子:用棋子自身的亮色呼吸發光(不依賴白色,避免被深色外掛反轉成黑) */
+  .disc.last{outline:3px solid;outline-offset:1px;
+    animation:drop .28s ease-out, lastglow 1.1s ease-in-out .28s infinite}
+  .disc.r.last{outline-color:#ffd6a0;--glow:255,150,80}   /* 紅子 -> 橘紅光 */
+  .disc.y.last{outline-color:#fff3b0;--glow:255,225,80}   /* 黃子 -> 金光 */
+  @keyframes lastglow{
+    0%,100%{box-shadow:0 0 9px 3px rgba(var(--glow),.55)}
+    50%{box-shadow:0 0 22px 8px rgba(var(--glow),.95)}}
+  @keyframes drop{from{transform:translateY(-340px)}to{transform:translateY(0)}}
+  .win{animation:pulse .7s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}
+    50%{box-shadow:0 0 0 5px rgba(255,255,255,.55)}}
+  /* Analysis row: per-column score bars aligned above the board */
+  #eval{font-size:.9rem;color:var(--muted);min-height:1.2em}
+  #eval b{color:var(--text)}
+  #analysis{display:grid;grid-template-columns:repeat(7,62px);gap:10px;padding:0 12px}
+  .acol{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.72rem;
+    color:var(--muted)}
+  .acol.best{color:#9bd4ff;font-weight:700}
+  .abar{width:18px;height:42px;background:#0d3a73;border-radius:4px;position:relative;
+    overflow:hidden}
+  .abar i{position:absolute;bottom:0;left:0;width:100%;background:#3d7fc4}
+  .acol.best .abar i{background:#5fb0ff}
+  @media(max-width:560px){.cell{width:42px;height:42px}
+    #analysis{grid-template-columns:repeat(7,42px)}}
+</style>
+</head>
+<body>
+  <h1>Connect 4 <small>vs AlphaZero</small></h1>
+
+  <div class="panel">
+    <label>先手 <select id="first">
+      <option value="random" selected>隨機</option>
+      <option value="human">我先 (紅)</option>
+      <option value="ai">AI 先 (紅)</option>
+    </select></label>
+    <label>難度 <select id="sims">
+      <option value="50">簡單 (50)</option>
+      <option value="200" selected>普通 (200)</option>
+      <option value="600">困難 (600)</option>
+      <option value="1200">超難 (1200)</option>
+    </select></label>
+    <label><input type="checkbox" id="analyze" checked> 顯示分析</label>
+    <button class="primary" id="newgame">新遊戲</button>
+  </div>
+
+  <div id="status">點「新遊戲」開始</div>
+  <div id="eval"></div>
+  <div id="analysis"></div>
+  <div class="board" id="board"></div>
+
+  <script>
+  const ROWS = 6, COLS = 7;
+  let moves = [];        // list of columns played, in order
+  let humanPlayer = 1;   // 1 = red (first), -1 = yellow (second)
+  let turn = 1;          // whose turn (1 first-player, -1 second)
+  let busy = false, over = false;
+
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+
+  // Build the 6x7 board (values 1/-1/0) by replaying the move list.
+  function buildBoard(ms){
+    const b = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+    let p = 1;
+    for(const c of ms){
+      for(let r=0;r<ROWS;r++){ if(b[r][c]===0){ b[r][c]=p; break; } }
+      p = -p;
+    }
+    return b; // b[0] is the bottom row
+  }
+  function legalCols(){
+    const b = buildBoard(moves);
+    const out=[]; for(let c=0;c<COLS;c++) if(b[ROWS-1][c]===0) out.push(c);
+    return out;
+  }
+
+  function render(){
+    const b = buildBoard(moves);
+    // Locate the most-recently placed disc so we can make it glow.
+    let lastCol=-1, lastRow=-1;
+    if(moves.length){
+      lastCol = moves[moves.length-1];
+      for(let r=ROWS-1;r>=0;r--){ if(b[r][lastCol]!==0){ lastRow=r; break; } }
+    }
+    boardEl.innerHTML='';
+    for(let r=ROWS-1;r>=0;r--){          // render top row first
+      for(let c=0;c<COLS;c++){
+        const cell=document.createElement('div');
+        cell.className='cell'; cell.dataset.col=c;
+        const v=b[r][c];
+        if(v!==0){
+          const d=document.createElement('div');
+          d.className='disc '+(v===1?'r':'y');
+          if(r===lastRow && c===lastCol) d.classList.add('last');
+          cell.appendChild(d);
+        }
+        boardEl.appendChild(cell);
+      }
+    }
+    attachHover();
+  }
+  function attachHover(){
+    boardEl.querySelectorAll('.cell').forEach(cell=>{
+      const col=+cell.dataset.col;
+      cell.onmouseenter=()=>highlight(col,true);
+      cell.onmouseleave=()=>highlight(col,false);
+      cell.onclick=()=>play(col);
+    });
+  }
+  function highlight(col,on){
+    if(busy||over||turn!==humanPlayer) return;
+    boardEl.querySelectorAll('.cell').forEach(cell=>{
+      cell.classList.toggle('col-hover', on && +cell.dataset.col===col);
+    });
+  }
+
+  async function postMove(){
+    const sims = +document.getElementById('sims').value;
+    const res = await fetch('/api/move',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({moves, sims})
+    });
+    return res.json();
+  }
+
+  const evalEl = document.getElementById('eval');
+  const analysisEl = document.getElementById('analysis');
+
+  function clearAnalysis(){ evalEl.textContent=''; analysisEl.innerHTML=''; }
+
+  // Ask the AI to evaluate the current (human's) position and render per-column bars.
+  async function analyze(){
+    if(!document.getElementById('analyze').checked || over) { clearAnalysis(); return; }
+    const sims = +document.getElementById('sims').value;
+    const res = await fetch('/api/analyze',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({moves, sims})
+    });
+    const d = await res.json();
+    if(d.terminal){ clearAnalysis(); return; }
+    evalEl.innerHTML = `局面評估(輪到你):勝率 <b>${d.win_pct.toFixed(0)}%</b>`;
+    const max = Math.max(...d.policy, 0.01);
+    analysisEl.innerHTML='';
+    for(let c=0;c<7;c++){
+      const col=document.createElement('div');
+      col.className='acol'+(d.legal[c] && c===d.best ? ' best':'');
+      const pct = d.legal[c] ? Math.round(d.policy[c]*100) : 0;
+      col.innerHTML = d.legal[c]
+        ? `<div class="apct">${pct}%</div><div class="abar"><i style="height:${Math.round(d.policy[c]/max*100)}%"></i></div>`
+        : `<div class="apct">–</div><div class="abar"></div>`;
+      analysisEl.appendChild(col);
+    }
+  }
+
+  function endGame(winner){
+    over=true; clearAnalysis();
+    if(winner===0) statusEl.textContent='平手!';
+    else if(winner===humanPlayer) statusEl.textContent='🎉 你贏了!';
+    else statusEl.textContent='💻 AI 獲勝!';
+  }
+
+  async function aiTurn(){
+    busy=true; statusEl.textContent='AI 思考中…';
+    const data = await postMove();
+    if(data.ai_move!==null && data.ai_move!==undefined) moves.push(data.ai_move);
+    render();
+    if(data.terminal){ endGame(data.winner); busy=false; return; }
+    turn = humanPlayer; busy=false;
+    statusEl.textContent='輪到你了';
+    analyze();
+  }
+
+  async function play(col){
+    if(busy||over||turn!==humanPlayer) return;
+    if(!legalCols().includes(col)) return;
+    moves.push(col); turn=-humanPlayer; render(); clearAnalysis();
+    // Let the server check if this move ended the game, then reply.
+    busy=true; statusEl.textContent='AI 思考中…';
+    const data = await postMove();
+    if(data.terminal && data.ai_move===null){  // human's move ended it
+      endGame(data.winner); busy=false; return;
+    }
+    if(data.ai_move!==null && data.ai_move!==undefined) moves.push(data.ai_move);
+    render();
+    if(data.terminal){ endGame(data.winner); busy=false; return; }
+    turn=humanPlayer; busy=false; statusEl.textContent='輪到你了';
+    analyze();
+  }
+
+  function newGame(){
+    moves=[]; over=false; busy=false; turn=1; clearAnalysis();
+    // Player +1 is red and always moves first; humanPlayer picks the human's color.
+    let choice = document.getElementById('first').value;
+    if(choice === 'random'){ choice = Math.random() < 0.5 ? 'human' : 'ai'; }
+    humanPlayer = choice === 'human' ? 1 : -1;
+    render();
+    const youAre = humanPlayer === 1 ? '你是紅子,你先手' : '你是黃子,AI 先手';
+    if(turn===humanPlayer){ statusEl.textContent = youAre + ' — 輪到你了'; analyze(); }
+    else { statusEl.textContent = youAre; aiTurn(); }   // AI moves first
+  }
+
+  // Toggling the checkbox re-analyzes (or clears) the current position.
+  document.getElementById('analyze').onchange = () => {
+    if(!over && turn===humanPlayer) analyze(); else clearAnalysis();
+  };
+
+  document.getElementById('newgame').onclick=newGame;
+  render();
+  </script>
+</body>
+</html>
