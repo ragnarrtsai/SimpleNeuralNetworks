@@ -40,7 +40,7 @@ python webplay.py
 
 ## 畫面功能
 
-![遊戲畫面](docs/screenshot-midgame.png)
+![遊戲畫面](assets/screenshot-midgame.png)
 
 - **點欄位落子**:用滑鼠點任一欄,棋子會掉到底;最新落下的棋子會發光標示。
 - **先手**(左上):隨機 / 我先 / AI 先。
@@ -52,4 +52,4 @@ python webplay.py
 
 開局時開啟分析,AI 會推薦下正中央:
 
-![開局分析](docs/screenshot-analysis.png)
+![開局分析](assets/screenshot-analysis.png)
