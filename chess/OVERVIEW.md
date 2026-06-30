@@ -22,7 +22,7 @@ python -m alphazero.train --iterations 80     # 練更多輪
 python -m alphazero.train --games 50 --sims 100   # 每輪更快
 ```
 
-不訓練也沒關係——專案已內附訓練好的模型,可以直接玩。
+不訓練也沒關係——專案已內附訓練好的模型,可以直接玩。內附三個強度不同的模型:`weak.pt`(很弱)、`best_iter50.pt`(訓練中期)、`iter_120.pt`(訓練最久、最強),愈晚的版本愈強。想看它們互打的勝負,參考 README 的 Arena 說明。
 
 ---
 

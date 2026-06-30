@@ -74,19 +74,46 @@ python play.py --sims 400          # you are O, AI moves first
 python play.py --human-first       # you are X, you move first
 ```
 
-## Compare two checkpoints (Arena)
+## Arena — compare checkpoints
 
-The repo bundles two models — `best.pt` (the trained champion) and `weak.pt` (a
-much weaker model) — so you can run a comparison right away:
+The repo bundles trained models so you can compare strength right away:
+
+| file | what it is |
+|------|------------|
+| `checkpoints/best.pt`        | the champion used by `play.py` / `webplay.py` |
+| `checkpoints/weak.pt`        | a deliberately weak net (baseline) |
+| `checkpoints/best_iter50.pt` | the champion after ~50 training iterations |
+| `checkpoints/iter_120.pt`    | the snapshot after 120 iterations (strongest) |
+
+**Two checkpoints** — head-to-head win rate:
 
 ```bash
 python duel.py checkpoints/best.pt checkpoints/weak.pt --games 30
 ```
 
-It plays a match with alternating colors (and randomized openings so the games
-differ) and reports a win rate — handy for measuring whether training actually
-made the net stronger. (This is the user-facing version of the Arena step the
-training loop uses internally.)
+**Several checkpoints (round-robin arena)** — every pair plays, then a
+leaderboard ranks them by score (win=1, draw=0.5). Handy for showing that more
+training really makes the net stronger:
+
+```bash
+python arena.py checkpoints/weak.pt checkpoints/best_iter50.pt checkpoints/iter_120.pt --games 50
+```
+
+Sample run (50 games per pairing, 120 sims/move) — strength is cleanly
+monotonic in training time:
+
+```
+ #  model                score    W    D    L
+ 1  iter_120              83.0   80    6   14
+ 2  best_iter50           57.5   53    9   38
+ 3  weak                   9.5    6    7   87
+```
+
+`iter_120` beats `best_iter50` 32–14 and the weak net never beats it (0–48).
+
+Both alternate colors and randomize the opening plies so the games differ.
+(This is the user-facing version of the Arena step the training loop uses
+internally.)
 
 ## Layout
 
@@ -105,6 +132,7 @@ webplay.py             # web UI server (play + analysis)
 templates/connect4.html# web UI front-end
 play.py                # human-vs-AI CLI
 duel.py                # pit two checkpoints against each other
+arena.py               # round-robin several checkpoints -> leaderboard
 tests/                 # game-logic sanity tests  (python -m pytest)
 ```
 
