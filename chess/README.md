@@ -99,23 +99,19 @@ training really makes the net stronger:
 python arena.py checkpoints/weak.pt checkpoints/best_iter50.pt checkpoints/iter_120.pt --games 50
 ```
 
-Sample run (50 games per pairing, 120 sims/move). The head-to-head matrix shows
-who beat whom (each cell is the **row** model's W-L-D against the **column**):
+Sample run (50 games per pairing, 120 sims/move) — each line names the winner
+explicitly (wins–losses, from the **first** model's view, plus draws):
 
 ```
-                    weak  best_iter50     iter_120
-       weak        -            6-39-5       0-48-2
-best_iter50       39-6-5        -           14-32-4
-   iter_120       48-0-2       32-14-4       -
+iter_120     beat  best_iter50    32–14   (4 draws)
+iter_120     beat  weak           48–0    (2 draws)
+best_iter50  beat  weak           39–6    (5 draws)
 
- #  model                score    W    D    L
- 1  iter_120              83.0   80    6   14
- 2  best_iter50           57.5   53    9   38
- 3  weak                   9.5    6    7   87
+ranking:  iter_120  >  best_iter50  >  weak
 ```
 
-Strength is cleanly monotonic in training time: `iter_120` beats `best_iter50`
-32–14 and the weak net never beats it (0–48).
+Strength is cleanly monotonic in training time — `iter_120` won every matchup
+and `weak` won none.
 
 Both alternate colors and randomize the opening plies so the games differ.
 (This is the user-facing version of the Arena step the training loop uses

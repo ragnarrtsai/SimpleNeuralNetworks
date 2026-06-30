@@ -48,7 +48,6 @@ def main():
     draws = [0] * n
     losses = [0] * n
     score = [0.0] * n
-    cell = [["    -    "] * n for _ in range(n)]  # head-to-head, row's W-L-D vs col
 
     print(f"Arena: {n} models, {args.games} games/pair, {args.sims} sims/move\n")
     for i, j in itertools.combinations(range(n), 2):
@@ -70,17 +69,13 @@ def main():
         wins[j] += b; losses[j] += a; draws[j] += d
         score[i] += a + 0.5 * d
         score[j] += b + 0.5 * d
-        cell[i][j] = f"{a}-{b}-{d}"
-        cell[j][i] = f"{b}-{a}-{d}"
-        print(f"  {names[i]:>16} vs {names[j]:<16}  {a}-{b}-{d}  (W-L-D for {names[i]})")
-
-    w = max(11, *(len(nm) for nm in names))
-
-    # Head-to-head matrix: each cell is the ROW model's wins-losses-draws vs the COLUMN model.
-    print("\nHead-to-head (row vs col, W-L-D for the row):")
-    print(" " * w + "  " + "  ".join(f"{nm:>{w}}" for nm in names))
-    for i in range(n):
-        print(f"{names[i]:>{w}}  " + "  ".join(f"{cell[i][j]:>{w}}" for j in range(n)))
+        # Name the winner explicitly so there's no row-vs-column ambiguity.
+        if a > b:
+            print(f"  {names[i]:>16} beat {names[j]:<16}  {a}-{b}  ({d} draws)")
+        elif b > a:
+            print(f"  {names[j]:>16} beat {names[i]:<16}  {b}-{a}  ({d} draws)")
+        else:
+            print(f"  {names[i]:>16} drew {names[j]:<16}  {a}-{b}  ({d} draws)")
 
     order = sorted(range(n), key=lambda k: score[k], reverse=True)
     print("\n" + "=" * 54)
