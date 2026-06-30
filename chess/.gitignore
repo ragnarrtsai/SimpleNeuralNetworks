@@ -1,0 +1,20 @@
+# Python virtual environment
+venv/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Training artifacts
+training.log
+checkpoints/*.pt
+!checkpoints/best.pt          # keep the trained champion (small, bundled with the repo)
+!checkpoints/weak.pt          # keep a weaker model so `duel.py` works out of the box
+
+# Local / personal Claude Code settings
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# OS files
+.DS_Store

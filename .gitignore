@@ -1,0 +1,28 @@
+# Whitelist mode — only public-release files are tracked.
+# Public surface: README.md, OVERVIEW.md, and the released model file at each topic root.
+# Source code, notebooks, datasets, intermediate model checkpoints, env, .claude/ etc. stay local.
+
+# Ignore everything by default
+*
+
+# Allow descending into subdirectories so the !rules below can match files inside
+!*/
+
+# This file itself
+!.gitignore
+
+# Public-release files
+!README.md
+!OVERVIEW.md
+!requirements.txt
+!*.pt
+!*.pth
+
+# Showcase assets (images + metrics referenced by OVERVIEW.md / README.md)
+!**/assets/**
+
+# model/ folder is always ignored — only the topic-root "latest" model file ships
+**/model/
+
+# 內嵌資料集（獨立 repo），不納入本 repo
+youbike-transformer/input/youbike-historical-data/
