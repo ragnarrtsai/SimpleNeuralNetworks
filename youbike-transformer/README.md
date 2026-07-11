@@ -77,53 +77,34 @@ Schema matches the historical archive (same field names + `Quantity` corresponds
 
 ## Run
 
-> **實際 v1–v4 實驗用的是專用腳本,非下方 notebook。** 這些 run(見附錄 A–J 與 [`VERSIONS.md`](VERSIONS.md))混用歷史封存 + 自爬 live 資料,並把測試集**固定為 live 最後 7 天**(不是下表的 `TEST_FRAC`):`train_hist_live.py`(v1)、`train_hist_live_v2.py`(v2)、`train_v3.py`、`train_v4.py`。各版超參數與指標記於 `VERSIONS.md`,診斷報告見本機 `report.html`。下方 notebook 是原始的單一資料源腳手架。
-
-Training is a notebook with tqdm progress bars + per-epoch loss table + training-results analysis:
+v1–v4 各版用**專用訓練腳本**(非 notebook),混用歷史封存 + 自爬 live 資料,測試集固定為 **live 最後 7 天**。共用 repo 根目錄的 venv:
 
 ```bash
-jupyter lab train.ipynb        # or open in VSCode
+source ../.venv/bin/activate
+python train_hist_live.py       # v1 基準
+python train_hist_live_v2.py    # v2 正則化對照
+python train_v3.py              # v3 站點嵌入 + 「站×星期×時段」歷史基準特徵
+python train_v4.py              # v4 收斂過擬合(目前最佳)
 ```
 
-Key knobs in the first config cell:
+超參數為各腳本頂部常數,例如 `LAG_STEPS=6`(60 分鐘回看)、`HORIZON_STEP=3`(預測 +30 分)、`HIST_SAMPLE_FRAC=0.05`、`EPOCHS=20`、`TEST_START=2026-06-16`(最後 7 天為測試集)。裝置自動偵測 CUDA → MPS → CPU。
 
-| Name | Default | Meaning |
-|------|---------|---------|
-| `N_DAYS` | 30 | how many recent days of slots to load |
-| `LAG_STEPS` | 6 | past timesteps (× 10 min) → sequence length = 7 |
-| `HORIZON_STEP` | 3 | predict this many steps (× 10 min) ahead |
-| `SAMPLE_FRAC` | 0.05 | random subsample of windows (memory) |
-| `TEST_FRAC` | 0.2 | last fraction of time range becomes test |
-| `D_MODEL` | 64 | Transformer embedding dim |
-| `NHEAD` | 4 | attention heads |
-| `NUM_LAYERS` | 2 | encoder layers |
-| `DIM_FF` | 128 | feed-forward dim inside each encoder layer |
-| `DROPOUT` | 0.1 | |
-| `EPOCHS` | 20 | training epochs |
-| `BATCH_SIZE` | 1024 | |
-| `LR` | 1e-3 | Adam learning rate, with `CosineAnnealingLR` schedule |
+每次執行以 `RUN_ID = yyyyMMdd_HHmmss` 命名,寫出:
 
-Each run captures `RUN_ID = yyyyMMdd_HHmmss` at the top and writes:
+- `model/<RUN_ID>.pt` — 權重(全部保留、不覆蓋)
+- `output/<RUN_ID>/history.json` — per-epoch train/test MAE 等
+- `output/<RUN_ID>/analysis.json` — 該版指標 / 計時 / 診斷
+- `output/<RUN_ID>/snapshot/` — 當下的 `model.py` / `data.py` / 訓練腳本快照(綁定該 checkpoint)
 
-- `model/<RUN_ID>.pt` — trained weights
-- `output/<RUN_ID>/history.json` — per-epoch `train_loss` / `test_mae` / `test_rmse` / `lr`
-
-Re-evaluate later:
+登錄版本台帳(產生 / 更新 `VERSIONS.md` + `versions.json`):
 
 ```bash
-python eval.py                                       # uses ./latest.pt on last 7 days
-python eval.py --weights model/20260514_113042.pt --days 14
+python log_version.py <RUN_ID> --tag v4 --changes "…" --notes "…" --script train_v4.py
 ```
 
-Generate showcase artifacts:
+診斷與繪圖腳本:`plot_showcase.py`(附錄圖表)、`compute_deep_diag.py`、`find_error_spikes.py`(誤差異常偵測)。完整版本導向報告為本機 `report.html`。
 
-```bash
-python demo.py --weights model/<RUN_ID>.pt --run-id <RUN_ID>
-```
-
-This writes plots and `metrics.json` under `output/<RUN_ID>/showcase/`.
-
-Device auto-detects CUDA → MPS → CPU. Override with `--device cpu`.
+> 原始的單一資料源腳手架仍在(`train.ipynb` notebook、`eval.py`、`demo.py`,以及 `scrape_live.py` / `predict_live.py` 抓即時資料),但 v1–v4 未走此流程。
 
 ## Outputs
 
@@ -136,21 +117,22 @@ Device auto-detects CUDA → MPS → CPU. Override with `--device cpu`.
 | `output/<RUN_ID>/analysis.json`, `history.json` | no | 該版指標/計時/診斷 + per-epoch 曲線 |
 | `output/<RUN_ID>/snapshot/` | no | 訓練當下的 `model.py`/`data.py`/腳本快照(綁定該 checkpoint) |
 | `input/youbike-historical-data/`, `input/youbike-live/` | no | 歷史封存 + 自爬 live 資料 |
-| `latest.pt`, `assets/metrics.json` | yes(慣例) | **釋出**模型/showcase 的目標位置——目前尚未釋出任何 run |
+| `latest.pt` | yes(慣例) | **釋出**模型的目標位置(topic-root)——目前尚未釋出任何 run |
 
 ## Hyperparameters
 
-See the config cell at the top of `train.ipynb`. Loss is `SmoothL1Loss` (Huber); optimizer is `Adam`; scheduler is `CosineAnnealingLR(T_max=EPOCHS)`.
+各版超參數與變更記於 [`VERSIONS.md`](VERSIONS.md) 與各訓練腳本頂部常數。共通:損失 `SmoothL1Loss`(Huber)、優化器 `Adam`、排程 `CosineAnnealingLR(T_max=EPOCHS)`、殘差(delta)目標。v3+ 另加 station embedding 與「站×星期×時段」歷史基準特徵;v4 另加 `weight_decay=1e-4`、head `dropout=0.3`、嵌入降維至 8。
 
 ## Releasing a run
 
+目前**尚未正式 release 任何版本**(v4 為現階段最佳)。釋出是手動、由使用者決定的步驟:
+
 ```bash
-cp model/<RUN_ID>.pt latest.pt
-python demo.py --weights latest.pt --run-id <RUN_ID>
-cp output/<RUN_ID>/showcase/*.png assets/
-cp output/<RUN_ID>/showcase/metrics.json assets/
-# then update the "Specs" table above and OVERVIEW.md image references
+cp model/<RUN_ID>.pt latest.pt        # 選定要公開的權重
+# 再更新上方 Specs 表(如版本改變)
 ```
+
+會被追蹤 / 可公開的檔案:`README.md`、`OVERVIEW.md`、`VERSIONS.md`、`versions.json`、`assets/**`、以及 topic-root 的 `latest.pt`。原始碼(`*.py`)、`train.ipynb`、`model/`、`output/`、`report.html` 依 [`.gitignore`](../.gitignore) 留在本機。**push 由使用者手動執行。**
 
 ---
 
