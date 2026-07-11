@@ -130,7 +130,7 @@ Device auto-detects CUDA → MPS → CPU. Override with `--device cpu`.
 | Path | Tracked? | Contents |
 |------|----------|----------|
 | `VERSIONS.md`, `versions.json` | yes | 版本台帳(v1–v4 比較 + 變更 + 進步指標),由 `log_version.py` 產生 |
-| `assets/appendix_*.png`, `assets/source_*.png` | yes | 報告/附錄用圖表與來源存證快照 |
+| `assets/appendix_*.png`, `assets/anomaly_dadaocheng.png` | yes | 報告/附錄用圖表 |
 | `report.html` | **no**(gitignore `*.html`,本機) | 完整版本導向診斷報告(自成一體 HTML) |
 | `model/<RUN_ID>.pt` | no | 每次訓練的權重(全部保留) |
 | `output/<RUN_ID>/analysis.json`, `history.json` | no | 該版指標/計時/診斷 + per-epoch 曲線 |
