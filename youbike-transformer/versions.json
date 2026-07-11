@@ -1,0 +1,218 @@
+[
+  {
+    "tag": "v1",
+    "run_id": "20260705_223205",
+    "date": "2026-07-05 22:32",
+    "changes": "基準：歷史+live、最後7天測試、residual/Huber、dropout 0.1",
+    "notes": "首個以「歷史封存+自爬 live、last-7-days 為測試集」的正式 run，作為後續版本的比較基準。",
+    "n_params": 72449,
+    "arch": {
+      "desc": "Transformer encoder ×2 (d_model=64, nhead=4, ff=128, dropout=0.1), seq_len=7, residual/delta 目標",
+      "d_model": 64,
+      "nhead": 4,
+      "num_layers": 2,
+      "dim_ff": 128,
+      "dropout": 0.1,
+      "seq_len": 7,
+      "weight_decay": 0.0
+    },
+    "model": {
+      "path": "model/20260705_223205.pt",
+      "size_kb": 294.2,
+      "exists": true,
+      "arch_snapshot": [
+        "output/20260705_223205/snapshot/model.py",
+        "output/20260705_223205/snapshot/data.py",
+        "output/20260705_223205/snapshot/train_hist_live.py"
+      ]
+    },
+    "metrics": {
+      "test_mae": 4.1362,
+      "test_rmse": 6.083,
+      "baseline_mae": 4.3021,
+      "mae_reduction_pct": 3.86,
+      "overfit_gap": 0.4297,
+      "hit1_pct": 19.8,
+      "hit2_pct": 38.1,
+      "hit5_pct": 72.4,
+      "hit1_baseline_pct": 29.2
+    },
+    "timing": {
+      "device": "MacBook Pro M4 (Apple Silicon, MPS)",
+      "total_sec": 220.1,
+      "train_sec": 167.9,
+      "mean_epoch_sec": 8.39,
+      "hist_load_sec": 47.2,
+      "live_load_sec": 4.1,
+      "infer_us": 315.0
+    },
+    "diagnostics": {
+      "actual_delta_std": 6.320212364196777,
+      "pred_delta_std": 1.9061614274978638,
+      "delta_retention_pct": 30.15976905822754,
+      "corr_r": 0.27603477441705804
+    }
+  },
+  {
+    "tag": "v2",
+    "run_id": "20260711_103756",
+    "date": "2026-07-11 10:37",
+    "changes": "+weight_decay 1e-4、dropout 0.2、early-stop（保留最佳 checkpoint）",
+    "notes": "抗 overfit 對照實驗。結論：三帖藥皆雜訊級變動，正則化無實質改善，模型已逼近此特徵集下的資料雜訊天花板。",
+    "n_params": 72449,
+    "arch": {
+      "desc": "Transformer encoder ×2 (d_model=64, nhead=4, ff=128, dropout=0.2), seq_len=7, residual/delta 目標",
+      "d_model": 64,
+      "nhead": 4,
+      "num_layers": 2,
+      "dim_ff": 128,
+      "dropout": 0.2,
+      "seq_len": 7,
+      "weight_decay": 0.0001
+    },
+    "model": {
+      "path": "model/20260711_103756.pt",
+      "size_kb": 294.2,
+      "exists": true,
+      "arch_snapshot": [
+        "output/20260711_103756/snapshot/model.py",
+        "output/20260711_103756/snapshot/data.py",
+        "output/20260711_103756/snapshot/train_hist_live_v2.py"
+      ]
+    },
+    "metrics": {
+      "test_mae": 4.1424,
+      "test_rmse": 6.0872,
+      "baseline_mae": 4.3021,
+      "mae_reduction_pct": 3.71,
+      "overfit_gap": 0.4166,
+      "hit1_pct": 20.1,
+      "hit2_pct": 38.1,
+      "hit5_pct": 72.4,
+      "hit1_baseline_pct": 29.2
+    },
+    "timing": {
+      "device": "MacBook Pro M4 (Apple Silicon, MPS)",
+      "total_sec": 223.1,
+      "train_sec": 169.9,
+      "mean_epoch_sec": 8.49,
+      "hist_load_sec": 48.2,
+      "live_load_sec": 4.1,
+      "infer_us": 312.0
+    },
+    "diagnostics": {
+      "actual_delta_std": 6.320212364196777,
+      "pred_delta_std": 1.6999319791793823,
+      "delta_retention_pct": 26.896753311157227,
+      "corr_r": 0.27139286362721016
+    }
+  },
+  {
+    "tag": "v3",
+    "run_id": "20260711_121252",
+    "date": "2026-07-11 12:12",
+    "changes": "+station embedding(16維) + 「站×星期×時段」歷史平均變化量特徵",
+    "notes": "驗證第06節假設。結果:機制對了(變化量保留率 30→50%、r 0.28→0.32、train MAE 3.71→3.21),但泛化變差(test MAE 4.14→4.21、overfit gap 0.43→1.00),新特徵讓模型記住訓練期(2024-25)各站規律但未遷移到2026測試週。下一步需正則化 embedding + 用貼近測試期的資料算基準。",
+    "n_params": 101697,
+    "arch": {
+      "desc": "Transformer encoder ×2 (d_model=64, nhead=4, ff=128, dropout=0.1), seq_len=7, residual/delta 目標",
+      "d_model": 64,
+      "nhead": 4,
+      "num_layers": 2,
+      "dim_ff": 128,
+      "dropout": 0.1,
+      "seq_len": 7,
+      "weight_decay": 0.0
+    },
+    "model": {
+      "path": "model/20260711_121252.pt",
+      "size_kb": 408.8,
+      "exists": true,
+      "arch_snapshot": [
+        "output/20260711_121252/snapshot/model.py",
+        "output/20260711_121252/snapshot/data.py",
+        "output/20260711_121252/snapshot/train_v3.py"
+      ]
+    },
+    "metrics": {
+      "test_mae": 4.2087,
+      "test_rmse": 6.0944,
+      "baseline_mae": 4.3021,
+      "mae_reduction_pct": 2.17,
+      "overfit_gap": 1.0029,
+      "hit1_pct": 19.1,
+      "hit2_pct": 36.8,
+      "hit5_pct": 71.0,
+      "hit1_baseline_pct": 29.2
+    },
+    "timing": {
+      "device": "MacBook Pro M4 (Apple Silicon, MPS)",
+      "total_sec": 253.0,
+      "train_sec": 199.2,
+      "mean_epoch_sec": 9.96,
+      "hist_load_sec": 48.3,
+      "live_load_sec": 4.1,
+      "infer_us": 316.0
+    },
+    "diagnostics": {
+      "actual_delta_std": 6.32,
+      "pred_delta_std": 3.18,
+      "delta_retention_pct": 50.0,
+      "corr_r": 0.324
+    }
+  },
+  {
+    "tag": "v4",
+    "run_id": "20260711_123300",
+    "date": "2026-07-11 12:33",
+    "changes": "站點嵌入降維16→8 + head dropout 0.3 + weight decay 1e-4 + 歷史基準改用2026近期資料計算",
+    "notes": "依 v3 檢討收斂過擬合。結果:四版最佳——test MAE 3.985(勝baseline 7.4%)、RMSE 5.84、overfit gap 回到受控 0.47、r 0.28→0.39、±5 命中率首度追平 baseline。正則化 + 近期基準特徵同時提升準度與泛化,驗證 v3 方向正確、只是需節制。",
+    "n_params": 87105,
+    "arch": {
+      "desc": "Transformer encoder ×2 (d_model=64, nhead=4, ff=128, dropout=0.2), seq_len=7, residual/delta 目標",
+      "d_model": 64,
+      "nhead": 4,
+      "num_layers": 2,
+      "dim_ff": 128,
+      "dropout": 0.2,
+      "seq_len": 7,
+      "weight_decay": 0.0001
+    },
+    "model": {
+      "path": "model/20260711_123300.pt",
+      "size_kb": 351.8,
+      "exists": true,
+      "arch_snapshot": [
+        "output/20260711_123300/snapshot/model.py",
+        "output/20260711_123300/snapshot/data.py",
+        "output/20260711_123300/snapshot/train_v4.py"
+      ]
+    },
+    "metrics": {
+      "test_mae": 3.9849,
+      "test_rmse": 5.8402,
+      "baseline_mae": 4.3021,
+      "mae_reduction_pct": 7.37,
+      "overfit_gap": 0.4739,
+      "hit1_pct": 20.4,
+      "hit2_pct": 39.4,
+      "hit5_pct": 73.7,
+      "hit1_baseline_pct": 29.2
+    },
+    "timing": {
+      "device": "MacBook Pro M4 (Apple Silicon, MPS)",
+      "total_sec": 258.3,
+      "train_sec": 203.9,
+      "mean_epoch_sec": 10.19,
+      "hist_load_sec": 48.9,
+      "live_load_sec": 4.2,
+      "infer_us": 319.0
+    },
+    "diagnostics": {
+      "actual_delta_std": 6.32,
+      "pred_delta_std": 2.04,
+      "delta_retention_pct": 32.0,
+      "corr_r": 0.39
+    }
+  }
+]

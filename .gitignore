@@ -41,3 +41,4 @@ youbike-transformer/model/
 youbike-transformer/*.py
 youbike-transformer/*.ipynb
 youbike-transformer/*.csv
+youbike-transformer/*.html
